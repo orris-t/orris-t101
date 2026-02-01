@@ -4,9 +4,10 @@ A lightweight web application that generates Instagram story content for medical
 
 ## Features
 
+- 📄 **Native PDF Support** - Sends framework PDFs directly to Claude for context
 - 🔍 **Web Search Integration** - Fetches latest medical information via Tavily
 - 🧠 **Extended Thinking** - Claude Sonnet 4.5 with reasoning capabilities
-- 📊 **Progress Indicators** - Real-time status updates (searching → reasoning → generating)
+- 📊 **Progress Indicators** - Real-time status updates (searching → loading → reasoning → generating)
 - 🎯 Topic-based story generation for medical topics
 - 📐 Three-dial decision framework (Recency, Cognitive Layer, Format)
 - 📱 Clean, responsive UI optimized for mobile and desktop
@@ -162,9 +163,16 @@ npm run build
 4. Review the extended thinking process (optional)
 5. Copy the story to clipboard or copy with thinking included
 
-## System Prompt
+## System Prompt and PDFs
 
-The system prompt is loaded from `../system prompt.md` relative to the app directory. This contains the three-dial framework and content generation rules.
+The app uses files from the `data/` directory:
+- `system-prompt.md` - Main system prompt with framework rules
+- 3 PDF files containing:
+  - Content strategy for Instagram stories
+  - Orris story system framework
+  - Foundation principles
+
+These files are automatically included in every request to Claude for context.
 
 ## API Cost Considerations
 

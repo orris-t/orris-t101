@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Read the system prompt
-const systemPromptPath = path.join(process.cwd(), '..', 'system prompt.md');
+const systemPromptPath = path.join(process.cwd(), 'data', 'system-prompt.md');
 let systemPrompt = '';
 
 try {
@@ -11,6 +11,39 @@ try {
 } catch (error) {
   console.error('Error reading system prompt:', error);
   systemPrompt = 'You are Orris Stories, a cognitive copilot for medical residents.';
+}
+
+// Read PDFs as base64
+function readPDFsAsBase64() {
+  const pdfDir = path.join(process.cwd(), 'data');
+  const pdfFiles = [
+    '682a3111-e4ac-4815-bf7e-722b36470678_Content_strategy_for_Instagram_stories-compressed.pdf',
+    'orris story system-compressed.pdf',
+    'orris_foundation (1)-compressed.pdf',
+  ];
+
+  const documents = [];
+
+  for (const file of pdfFiles) {
+    try {
+      const filePath = path.join(pdfDir, file);
+      const fileBuffer = fs.readFileSync(filePath);
+      const base64Data = fileBuffer.toString('base64');
+
+      documents.push({
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: 'application/pdf',
+          data: base64Data,
+        },
+      });
+    } catch (error) {
+      console.error(`Error reading PDF ${file}:`, error);
+    }
+  }
+
+  return documents;
 }
 
 // Tavily web search function
@@ -112,7 +145,19 @@ export async function POST(req: NextRequest) {
 
         const searchResults = await searchWeb(topic);
 
-        // Step 2: Reasoning & Generation
+        // Step 2: Load PDFs
+        controller.enqueue(
+          encoder.encode(
+            JSON.stringify({
+              type: 'status',
+              message: 'Loading framework documents...',
+            }) + '\n'
+          )
+        );
+
+        const pdfDocuments = readPDFsAsBase64();
+
+        // Step 3: Reasoning & Generation
         controller.enqueue(
           encoder.encode(
             JSON.stringify({
@@ -128,12 +173,16 @@ export async function POST(req: NextRequest) {
           : azureEndpoint;
         const url = `${baseEndpoint}/v1/messages`;
 
-        // Enhanced prompt with search context
-        const enhancedPrompt = searchResults
-          ? `Topic: ${topic}\n\nRecent Medical Information:\n${searchResults}\n\nUsing the above recent information, create a medical story following your system prompt guidelines.`
-          : topic;
+        // Build content array with PDFs and text
+        const contentBlocks: any[] = [
+          ...pdfDocuments,
+          {
+            type: 'text',
+            text: `Topic: ${topic}\n\nRecent Medical Information:\n${searchResults}\n\nUsing the Orris Stories framework from the PDFs above and the recent medical information, create an Instagram story following the three-dial decision framework.`,
+          },
+        ];
 
-        // Call Azure Anthropic API with extended thinking
+        // Call Azure Anthropic API with extended thinking and PDFs
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -152,7 +201,7 @@ export async function POST(req: NextRequest) {
             messages: [
               {
                 role: 'user',
-                content: enhancedPrompt,
+                content: contentBlocks,
               },
             ],
           }),
@@ -203,7 +252,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Step 3: Generating story
+        // Step 4: Generating story
         controller.enqueue(
           encoder.encode(
             JSON.stringify({
